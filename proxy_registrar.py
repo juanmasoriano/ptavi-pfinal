@@ -55,7 +55,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
     destino = ['']
     nonce = []
 
-    def reenvio(self, method, ip_invited_user, port_invited_user,
+    def reenvio(self, metodo, ip_invited_user, port_invited_user,
                                 line_str):
         """
         Proceso para la comunicación del proxy con el uaserver y los reenvios
@@ -74,7 +74,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         log(('Sent to ' + ip_invited_user + ':' +
                 str(port_invited_user) + ' ' + line_str))
 
-        if method in ['INVITE', 'BYE']:
+        if metodo in ['INVITE', 'BYE']:
             data = my_socket.recv(1024)
             received_line = data.decode('utf-8')
             log(('Received from ' + ip_invited_user + ':' +
@@ -106,10 +106,10 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         valid_request = False
         valid_method = False
         valid_user = False
-        proxy_methods = ['REGISTER', 'INVITE', 'ACK', 'BYE']
+        metodos_proxy = ['REGISTER', 'INVITE', 'ACK', 'BYE']
         line_str = self.rfile.read().decode('utf-8')
         list_linecontent = line_str.split()
-        method = list_linecontent[0]
+        metodo = list_linecontent[0]
         log(('Received from ' + self.client_address[0] + ':' +
                 str(self.client_address[1]) + ' ' + line_str))
 
@@ -126,7 +126,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             log(('Sent to ' + self.client_address[0] + ':' +
                     str(self.client_address[1]) + ' ' +
                     'SIP/2.0 400 Bad Request\r\n\r\n'))
-        if method in proxy_methods:
+        if metodo in metodos_proxy:
             valid_method = True
         else:
             self.wfile.write(b'SIP/2.0 405 Method Not Allowed\r\n\r\n')
@@ -135,7 +135,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                     'SIP/2.0 405 Method Not Allowed\r\n\r\n'))
 
         if valid_method and valid_request:
-            if method == 'REGISTER':
+            if metodo == 'REGISTER':
                 self.nonce.append(str(random.randint(0,
                                             99999999999999999999999999999999)))
                 user = list_linecontent[1].split(':')[1]
@@ -193,7 +193,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                             'WWW Authenticate: Digest nonce ="' +
                             self.nonce[0] + '"\r\n\r\n'))
 
-            elif method == 'INVITE':
+            elif metodo == 'INVITE':
                 invited_user = list_linecontent[1].split(':')[1]
                 registered_invited_user = False
                 sdp = line_str.split('\r\n\r\n')[1]
@@ -211,7 +211,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                         registered_o_user = True
 
                 if registered_invited_user and registered_o_user:
-                    self.reenvio(method, ip_invited_user,
+                    self.reenvio(metodo, ip_invited_user,
                                     port_invited_user, line_str)
 
                 elif not registered_o_user:
@@ -219,27 +219,36 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                     log(('Sent to ' + self.client_address[0] + ':' +
                             str(self.client_address[1]) + ' ' +
                             'SIP/2.0 401 Unauthorized\r\n\r\n'))
-                else:
+                elif not registered_invited_user:
                     self.wfile.write(b'SIP/2.0 404 User Not Found\r\n\r\n')
                     log(('Sent to ' + self.client_address[0] + ':' +
                             str(self.client_address[1]) + ' ' +
                             'SIP/2.0 404 User Not Found\r\n\r\n'))
 
-            elif method == 'ACK':
+            elif metodo == 'ACK':
                 invited_user = self.destino[0]
                 ip_invited_user = self.dic[invited_user][0]['ip']
                 port_invited_user = int(self.dic[invited_user][1]['port'])
 
-                self.reenvio(method, ip_invited_user,
+                self.reenvio(metodo, ip_invited_user,
                                             port_invited_user, line_str)
 
-            elif method == 'BYE':
-                invited_user = self.destino[0]
-                ip_invited_user = self.dic[invited_user][0]['ip']
-                port_invited_user = int(self.dic[invited_user][1]['port'])
-
-                self.reenvio(method, ip_invited_user,
-                                            port_invited_user, line_str)
+            elif metodo == 'BYE':
+                registered_invited_user = False
+                invited_user = list_linecontent[1].split(':')[1]
+                for usuario in self.dic:
+                    if invited_user == usuario:
+                        registered_invited_user = True
+                        ip_invited_user = self.dic[invited_user][0]['ip']
+                        port_invited_user = int(self.dic[invited_user][1]['port'])
+                if registered_invited_user:
+                    self.reenvio(metodo, ip_invited_user,
+                                    port_invited_user, line_str)
+                elif not registered_invited_user:
+                    self.wfile.write(b'SIP/2.0 404 User Not Found\r\n\r\n')
+                    log(('Sent to ' + self.client_address[0] + ':' +
+                            str(self.client_address[1]) + ' ' +
+                            'SIP/2.0 404 User Not Found\r\n\r\n'))
 
             else:
                 self.wfile.write(b'SIP/2.0 404 User Not Found\r\n\r\n')
@@ -264,6 +273,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         codigo_json = json.dumps(self.dic)
         fich_json.write(codigo_json)
         fich_json.close()
+
 if __name__ == "__main__":
     try:
         CONFIG = sys.argv[1]
