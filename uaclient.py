@@ -44,12 +44,12 @@ class XMLHandler(ContentHandler):
 
 if __name__ == "__main__":
 
-    client_methods = ['REGISTER' , 'INVITE' , 'BYE']
+    metodos_client = ['REGISTER' , 'INVITE' , 'BYE']
 
     try:
         CONFIG = sys.argv[1]
-        METHOD = sys.argv[2].upper()
-        if METHOD not in client_methods:
+        METODO = sys.argv[2].upper()
+        if METODO not in metodos_client:
             sys.exit('Unknown methods')
         OPTION = sys.argv[3]
 
@@ -85,19 +85,22 @@ if __name__ == "__main__":
         my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         my_socket.connect((IP_PROXY, PORT_PROXY))
 
-        if METHOD == 'REGISTER':
-            LINE = (METHOD + ' sip:' + USER_NAME + ':' + str(PORT_UASERVER) +
+        if METODO == 'REGISTER':
+            LINE = (METODO + ' sip:' + USER_NAME + ':' + str(PORT_UASERVER) +
                     ' SIP/2.0\r\nExpires: ' + OPTION)
-        elif METHOD == 'INVITE':
+            my_socket.send(bytes(LINE, 'utf-8') + b'\r\n\r\n')
+            log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ' ' + LINE)
+        elif METODO == 'INVITE':
             BODY = ('v=0\r\no=' + USER_NAME + ' ' + IP_UASERVER +
                     '\r\ns=misesion\r\nt=0\r\nm=audio ' + str(PORT_RTP)+ ' RTP')
-            LINE = (METHOD + ' sip:' + OPTION +
+            LINE = (METODO + ' sip:' + OPTION +
                     ' SIP/2.0\r\nConten-type: application/sdp\r\n\r\n' + BODY)
-        elif METHOD == 'BYE':
-            LINE = (METHOD + ' sip:' + str(OPTION) + ' SIP/2.0')
-
-        my_socket.send(bytes(LINE, 'utf-8') + b'\r\n\r\n')
-        log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ' ' + LINE)
+            my_socket.send(bytes(LINE, 'utf-8') + b'\r\n\r\n')
+            log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ' ' + LINE)
+        elif METODO == 'BYE':
+            LINE = (METODO + ' sip:' + str(OPTION) + ' SIP/2.0')
+            my_socket.send(bytes(LINE, 'utf-8') + b'\r\n\r\n')
+            log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ' ' + LINE)
 
         data = my_socket.recv(1024)
         received_line = data.decode('utf-8')
@@ -105,13 +108,13 @@ if __name__ == "__main__":
         log('Received from ' + IP_PROXY + ':' + str(PORT_PROXY) +
                 ' ' + received_line)
 
-        if (METHOD == 'REGISTER') and ('SIP/2.0 401 Unauthorized' in received_line):
+        if (METODO == 'REGISTER') and ('SIP/2.0 401 Unauthorized' in received_line):
             nonce = received_line.split('"')[1]
             authenticate = hashlib.md5()
             authenticate.update(bytes(PASSWD, 'utf-8'))
             authenticate.update(bytes(nonce, 'utf-8'))
             authenticate.digest
-            LINE = (METHOD + ' sip:' + USER_NAME + ':' + str(PORT_UASERVER) +
+            LINE = (METODO + ' sip:' + USER_NAME + ':' + str(PORT_UASERVER) +
                     ' SIP/2.0\r\nExpires: ' + OPTION + '\r\n' +
                     'Authorization: Digest response="' +
                     authenticate.hexdigest() + '"')
@@ -125,9 +128,9 @@ if __name__ == "__main__":
             log('Received from ' + IP_PROXY + ':' + str(PORT_PROXY) +
                         ' ' + received_line)
 
-        elif (METHOD == 'INVITE') and 'OK' in received_line:
-            METHOD = 'ACK'
-            LINE = (METHOD + ' sip:' + OPTION + ' SIP/2.0')
+        elif (METODO == 'INVITE') and 'OK' in received_line:
+            METODO = 'ACK'
+            LINE = (METODO + ' sip:' + OPTION + ' SIP/2.0')
             my_socket.send(bytes(LINE, 'utf-8') + b'\r\n\r\n')
             log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) +
                     ' ' + LINE)
