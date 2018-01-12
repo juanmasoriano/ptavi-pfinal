@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <config>
     <account username="penny@girlnextdoor.org" passwd="neurona" />
-    <uaserver ip="127.0.0.1" puerto"1357" />
-    <rtpaudio puerto "34043" />
+    <uaserver ip="127.0.0.1" puerto="1357" />
+    <rtpaudio puerto="34043" />
     <regproxy ip="127.0.0.1" puerto="7777" />
     <log path="log_ua2.txt" />
     <audio path="cancion.mp3" />
