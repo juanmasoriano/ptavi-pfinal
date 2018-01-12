@@ -23,32 +23,16 @@ class EchoHandler(socketserver.DatagramRequestHandler):
     ip_client = ['']
 
     def handle(self):
-        valid_request = False
-        valid_method = False
-        server_methods = ['INVITE' , 'ACK' , 'BYE']
+        metodos_server = ['INVITE' , 'ACK' , 'BYE']
         line_str = self.rfile.read().decode('utf-8')
         list_linecontent = line_str.split()
-        method = list_linecontent[0]
+        metodo = list_linecontent[0]
         log(('Received from ' + self.client_address[0] + ':' +
                 str(self.client_address[1]) + ':' + line_str))
         print('Recibido del proxy: \n' + line_str)
 
-        if len(list_linecontent) >= 3 and method in server_methods:
-            valid_request = True
-            valid_method = True
-        elif len(list_linecontent) < 3:
-            self.wfile.write(b'SIP/2.0 400 Bad Request\r\n\r\n')
-            log(('Sent to ' + self.client_address[0] + ':' +
-                    str(self.client_address[1]) + ' ' +
-                    'SIP/2.0 400 Bad Request\r\n\r\n'))
-        elif method not in server_methods:
-            self.wfile.write(b'SIP/2.0 405 Method Not Allowed\r\n\r\n')
-            log(('Sent to ' + self.client_address[0] + ':' +
-                    str(self.client_address[1]) + ' ' +
-                    'SIP/2.0 405 Method Not Allowed\r\n\r\n'))
-
-        if valid_method and valid_request:
-            if method == 'INVITE':
+        if len(list_linecontent) >= 3 and metodo in metodos_server:
+            if metodo == 'INVITE':
                 sdp_received = line_str.split('\r\n\r\n')[1]
                 sdp_to_send = ('v=0\r\no=' + USER_NAME + ' ' + IP_UASERVER +
                                 '\r\ns=misesion\r\nt=0\r\nm=audio ' +
@@ -68,7 +52,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                         'SIP/2.0 200 OK\r\n'
                         'Content-Type: application/sdp\r\n\r\n'
                         + sdp_to_send + '\r\n\r\n'))
-            elif method == 'ACK':
+            elif metodo == 'ACK':
                 print('ACK received. Starting rtp transmission...')
                 os.system('./mp32rtp -i ' + self.ip_client[0] + ' -p ' +
                             self.p_rtp_client[0] + ' < ' + fichero_audio)
@@ -81,12 +65,22 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                 os.system('./mp32rtp -i ' + IP_UASERVER + ' -p '
                             + str(PORT_RTP) + ' < ' + fichero_audio)
 
-            elif method == 'BYE':
+            elif metodo == 'BYE':
                 self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
                 log(('Sent to ' + self.client_address[0] + ':' +
                         str(self.client_address[1]) + ' ' +
                         'SIP/2.0 200 OK\r\n\r\n'))
 
+        elif len(list_linecontent) < 3:
+            self.wfile.write(b'SIP/2.0 400 Bad Request\r\n\r\n')
+            log(('Sent to ' + self.client_address[0] + ':' +
+                    str(self.client_address[1]) + ' ' +
+                    'SIP/2.0 400 Bad Request\r\n\r\n'))
+        elif metodo not in metodos_server:
+            self.wfile.write(b'SIP/2.0 405 Method Not Allowed\r\n\r\n')
+            log(('Sent to ' + self.client_address[0] + ':' +
+                    str(self.client_address[1]) + ' ' +
+                    'SIP/2.0 405 Method Not Allowed\r\n\r\n'))
 
 if __name__ == "__main__":
     try:
